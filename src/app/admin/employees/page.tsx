@@ -1,0 +1,201 @@
+"use client";
+
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Users, Lock, Unlock } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+const createEmployeeSchema = z.object({
+  username: z.string().min(3, { message: "El nombre de usuario debe tener al menos 3 caracteres." }),
+  email: z.string().email({ message: "Por favor, introduce un email válido." }),
+  password: z.string().min(8, { message: "La contraseña debe tener al menos 8 caracteres." }),
+  permissions: z.object({
+    manageEvents: z.boolean().default(false),
+    validatePayments: z.boolean().default(false),
+    moderateMessages: z.boolean().default(false),
+  }),
+});
+
+const employees = [
+  { id: "2", username: "EmpleadoUno", email: "empleado@test.com", permissions: { manageEvents: true, validatePayments: false, moderateMessages: true } },
+  { id: "3", username: "EmpleadoDos", email: "empleado2@test.com", permissions: { manageEvents: false, validatePayments: true, moderateMessages: false } },
+];
+
+export default function ManageEmployeesPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user?.role !== 'admin') {
+      router.push('/');
+    }
+  }, [user, router]);
+  
+  const form = useForm<z.infer<typeof createEmployeeSchema>>({
+    resolver: zodResolver(createEmployeeSchema),
+    defaultValues: {
+      username: "",
+      email: "",
+      password: "",
+      permissions: {
+        manageEvents: true,
+        validatePayments: false,
+        moderateMessages: true,
+      },
+    },
+  });
+
+  function onSubmit(values: z.infer<typeof createEmployeeSchema>) {
+    console.log("Creating new employee:", values);
+    // Here you would add the logic to create the employee in your backend
+    form.reset();
+  }
+
+  if (user?.role !== 'admin') {
+    return null; // Or a loading/unauthorized component
+  }
+
+  return (
+    <div className="grid md:grid-cols-3 gap-8">
+      <div className="md:col-span-1">
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline">Crear Nuevo Empleado</CardTitle>
+            <CardDescription>Rellena el formulario para añadir un nuevo miembro al equipo.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre de Usuario</FormLabel>
+                      <FormControl>
+                        <Input placeholder="NuevoEmpleado123" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="empleado@email.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contraseña</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="••••••••" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div>
+                  <h3 className="mb-4 text-sm font-medium">Permisos</h3>
+                  <div className="space-y-4">
+                     <FormField
+                        control={form.control}
+                        name="permissions.manageEvents"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                            <FormLabel>Gestionar Eventos</FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                     <FormField
+                        control={form.control}
+                        name="permissions.validatePayments"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                            <FormLabel>Validar Pagos</FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                     <FormField
+                        control={form.control}
+                        name="permissions.moderateMessages"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                            <FormLabel>Moderar Mensajes</FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full">Crear Empleado</Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </div>
+      <div className="md:col-span-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline flex items-center gap-2"><Users /> Lista de Empleados</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Usuario</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Permisos</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {employees.map((employee) => (
+                  <TableRow key={employee.id}>
+                    <TableCell className="font-medium">{employee.username}</TableCell>
+                    <TableCell>{employee.email}</TableCell>
+                    <TableCell className="flex flex-wrap gap-2">
+                      <Button size="sm" variant={employee.permissions.manageEvents ? "secondary" : "outline"}><Unlock className="mr-2 h-3 w-3" /> Eventos</Button>
+                      <Button size="sm" variant={employee.permissions.validatePayments ? "secondary" : "outline"}><Unlock className="mr-2 h-3 w-3" /> Pagos</Button>
+                      <Button size="sm" variant={employee.permissions.moderateMessages ? "secondary" : "outline"}><Lock className="mr-2 h-3 w-3" /> Moderación</Button>
+                    </TableCell>
+                    <TableCell className="text-right">
+                       <Button variant="ghost" size="sm">Editar</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

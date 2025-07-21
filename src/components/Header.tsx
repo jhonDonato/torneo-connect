@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Gamepad2, Swords, Trophy, History, ShieldCheck, Menu, X, LogIn, Lock, LogOut, User } from "lucide-react";
+import { Gamepad2, Swords, Trophy, History, ShieldCheck, Menu, X, LogIn, Lock, LogOut, User, Users, CalendarPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { useState } from "react";
@@ -20,10 +20,12 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 
 
 const navItems = [
-  { href: "/", label: "Sorteos y Torneos", icon: Swords, locked: false },
-  { href: "/rankings", label: "Ranking", icon: Trophy, locked: false },
-  { href: "/history", label: "Historial", icon: History, locked: false },
-  { href: "/moderation", label: "Moderación", icon: ShieldCheck, locked: true }, // Ejemplo de item bloqueado
+  { href: "/", label: "Sorteos y Torneos", icon: Swords, requiredRoles: [] },
+  { href: "/rankings", label: "Ranking", icon: Trophy, requiredRoles: [] },
+  { href: "/history", label: "Historial", icon: History, requiredRoles: [] },
+  { href: "/moderation", label: "Moderación", icon: ShieldCheck, requiredRoles: [] },
+  { href: "/admin/employees", label: "Gestionar Empleados", icon: Users, requiredRoles: ['admin'] },
+  { href: "/events/create", label: "Crear Evento", icon: CalendarPlus, requiredRoles: ['admin', 'employee'] },
 ];
 
 export function Header() {
@@ -33,31 +35,29 @@ export function Header() {
   
   const isAuthenticated = !!user;
 
-  const NavLink = ({ href, label, icon: Icon, isMobile = false, locked = false }: { href: string; label: string; icon: React.ElementType; isMobile?: boolean, locked?: boolean }) => {
-    const isLocked = locked && !isAuthenticated;
+  const NavLink = ({ href, label, icon: Icon, isMobile = false, requiredRoles = [] }: { href: string; label: string; icon: React.ElementType; isMobile?: boolean, requiredRoles: string[] }) => {
+    const isVisible = requiredRoles.length === 0 || (user && requiredRoles.includes(user.role));
+
+    if (!isVisible) {
+      return null;
+    }
+      
     const linkContent = (
       <Button
         variant="ghost"
         className={cn(
           "justify-start gap-2",
           pathname === href ? "bg-accent text-accent-foreground" : "",
-          isMobile ? "w-full text-lg" : "",
-          isLocked ? "text-muted-foreground cursor-not-allowed" : ""
+          isMobile ? "w-full text-lg" : ""
         )}
-        disabled={isLocked}
-        asChild={!isLocked}
+        asChild
       >
         <>
             <Icon className="h-5 w-5" />
             <span>{label}</span>
-            {isLocked && <Lock className="h-4 w-4 text-muted-foreground" />}
         </>
       </Button>
     );
-
-    if (isLocked) {
-        return <div className="relative" title="Inicia sesión para acceder">{linkContent}</div>
-    }
 
     if (isMobile) {
       return (
@@ -131,12 +131,11 @@ export function Header() {
 
         {/* Mobile Navigation */}
         <div className="md:hidden">
-           {isAuthenticated ? <UserNav /> : (
             <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-6 w-6" />
-                  <span className="sr-only">Abrir menú</span>
+                 <Button variant="ghost" size="icon">
+                  { isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                  <span className="sr-only">Abrir/Cerrar menú</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-[300px] sm:w-[400px] bg-card p-6">
@@ -148,12 +147,6 @@ export function Header() {
                         <span>TorneoConnect</span>
                       </Link>
                      </SheetClose>
-                     <SheetClose asChild>
-                       <Button variant="ghost" size="icon">
-                         <X className="h-6 w-6" />
-                         <span className="sr-only">Cerrar menú</span>
-                       </Button>
-                    </SheetClose>
                   </div>
                   <div className="flex flex-col gap-4">
                     {navItems.map((item) => (
@@ -161,18 +154,26 @@ export function Header() {
                     ))}
                   </div>
                    <div className="mt-auto">
-                      <SheetClose asChild>
+                      {isAuthenticated ? (
+                         <Button onClick={() => {
+                             logout();
+                             setIsMenuOpen(false);
+                           }} className="w-full">
+                           <LogOut className="mr-2 h-4 w-4" /> Cerrar Sesión
+                         </Button>
+                      ) : (
+                         <SheetClose asChild>
                           <Link href="/auth" passHref className="w-full">
                                <Button className="w-full">
                                   <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión
                                </Button>
                           </Link>
-                      </SheetClose>
+                         </SheetClose>
+                      )}
                    </div>
                 </div>
               </SheetContent>
             </Sheet>
-           )}
         </div>
       </nav>
     </header>
