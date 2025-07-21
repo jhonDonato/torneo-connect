@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import * as z from 'zod';
 
 const createEventSchema = z.object({
@@ -18,6 +19,8 @@ const createEventSchema = z.object({
 });
 
 export type EventPayload = z.infer<typeof createEventSchema>;
+// Dates are not serializable in JSON, so we store them as strings
+export type StoredEvent = Omit<EventPayload, 'eventDate'> & { id: string; published: boolean; eventDate: string; };
 export type Event = EventPayload & { id: string; published: boolean };
 
 interface EventContextType {
@@ -35,9 +38,39 @@ const initialEvents: Event[] = [
     { id: 't4', type: 'raffle', name: 'Sorteo Silla Gamer', prizeType: 'object', prizeObject: 'Silla Ergonómica Pro', fee: 10, slots: 100, game: 'general', eventDate: new Date(), published: true },
 ];
 
+const eventToStoredEvent = (event: Event): StoredEvent => ({
+    ...event,
+    eventDate: event.eventDate.toISOString(),
+});
+
+const storedEventToEvent = (storedEvent: StoredEvent): Event => ({
+    ...storedEvent,
+    eventDate: new Date(storedEvent.eventDate),
+});
 
 export const EventProvider = ({ children }: { children: ReactNode }) => {
-  const [events, setEvents] = useState<Event[]>(initialEvents);
+  const [events, setEvents] = useState<Event[]>([]);
+
+  useEffect(() => {
+    try {
+        const storedEventsJSON = localStorage.getItem('events');
+        if (storedEventsJSON) {
+            const storedEvents: StoredEvent[] = JSON.parse(storedEventsJSON);
+            setEvents(storedEvents.map(storedEventToEvent));
+        } else {
+            setEvents(initialEvents);
+            localStorage.setItem('events', JSON.stringify(initialEvents.map(eventToStoredEvent)));
+        }
+    } catch (error) {
+        console.error("Failed to parse events from localStorage", error);
+        setEvents(initialEvents);
+    }
+  }, []);
+
+  const updateAndStoreEvents = (newEvents: Event[]) => {
+      setEvents(newEvents);
+      localStorage.setItem('events', JSON.stringify(newEvents.map(eventToStoredEvent)));
+  }
 
   const addEvent = (eventPayload: EventPayload) => {
     const newEvent: Event = {
@@ -45,15 +78,14 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
       id: String(Date.now()),
       published: false,
     };
-    setEvents(prevEvents => [newEvent, ...prevEvents]);
+    updateAndStoreEvents([newEvent, ...events]);
   };
 
   const toggleEventStatus = (eventId: string) => {
-    setEvents(prevEvents =>
-      prevEvents.map(event =>
+    const updatedEvents = events.map(event =>
         event.id === eventId ? { ...event, published: !event.published } : event
-      )
     );
+    updateAndStoreEvents(updatedEvents);
   };
 
   const value = { events, addEvent, toggleEventStatus };
@@ -72,3 +104,5 @@ export const useEvents = () => {
   }
   return context;
 };
+
+    

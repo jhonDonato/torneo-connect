@@ -17,21 +17,51 @@ const initialPendingPayments = [
     { id: 'p4', user: 'DotaMaster', tournament: 'Campeonato Nacional de Dota 2', amount: 100, date: '2024-07-26', evidenceUrl: 'bank transfer' },
 ];
 
+type Payment = {
+    id: string;
+    user: string;
+    tournament: string;
+    amount: number;
+    date: string;
+    evidenceUrl: string;
+};
+
 export default function ValidatePaymentsPage() {
     const { user } = useAuth();
     const router = useRouter();
-    const [payments, setPayments] = useState(initialPendingPayments);
+    const [payments, setPayments] = useState<Payment[]>([]);
 
     useEffect(() => {
         if (!user || !['admin', 'employee'].includes(user.role)) {
             router.push('/');
         }
     }, [user, router]);
+    
+    useEffect(() => {
+        try {
+            const storedPayments = localStorage.getItem('pendingPayments');
+            if (storedPayments) {
+                setPayments(JSON.parse(storedPayments));
+            } else {
+                setPayments(initialPendingPayments);
+                localStorage.setItem('pendingPayments', JSON.stringify(initialPendingPayments));
+            }
+        } catch (error) {
+            console.error("Failed to parse payments from localStorage", error);
+            setPayments(initialPendingPayments);
+        }
+    }, []);
+
+    const updateAndStorePayments = (newPayments: Payment[]) => {
+        setPayments(newPayments);
+        localStorage.setItem('pendingPayments', JSON.stringify(newPayments));
+    };
 
     const handleAction = (paymentId: string, action: 'approve' | 'reject') => {
         console.log(`Payment ${paymentId} has been ${action}d.`);
         // Remove the payment from the list after action
-        setPayments(prev => prev.filter(p => p.id !== paymentId));
+        const updatedPayments = payments.filter(p => p.id !== paymentId);
+        updateAndStorePayments(updatedPayments);
     };
 
     if (!user || !['admin', 'employee'].includes(user.role)) {
@@ -96,3 +126,4 @@ export default function ValidatePaymentsPage() {
     );
 }
 
+    
