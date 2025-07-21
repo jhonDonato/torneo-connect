@@ -29,7 +29,7 @@ type Payment = {
 export default function ValidatePaymentsPage() {
     const { user } = useAuth();
     const router = useRouter();
-    const [payments, setPayments] = useState<Payment[]>([]);
+    const [payments, setPayments] = useState<Payment[]>(initialPendingPayments);
 
     useEffect(() => {
         if (!user || !['admin', 'employee'].includes(user.role)) {
@@ -37,31 +37,10 @@ export default function ValidatePaymentsPage() {
         }
     }, [user, router]);
     
-    useEffect(() => {
-        try {
-            const storedPayments = localStorage.getItem('pendingPayments');
-            if (storedPayments) {
-                setPayments(JSON.parse(storedPayments));
-            } else {
-                setPayments(initialPendingPayments);
-                localStorage.setItem('pendingPayments', JSON.stringify(initialPendingPayments));
-            }
-        } catch (error) {
-            console.error("Failed to parse payments from localStorage", error);
-            setPayments(initialPendingPayments);
-        }
-    }, []);
-
-    const updateAndStorePayments = (newPayments: Payment[]) => {
-        setPayments(newPayments);
-        localStorage.setItem('pendingPayments', JSON.stringify(newPayments));
-    };
-
     const handleAction = (paymentId: string, action: 'approve' | 'reject') => {
         console.log(`Payment ${paymentId} has been ${action}d.`);
         // Remove the payment from the list after action
-        const updatedPayments = payments.filter(p => p.id !== paymentId);
-        updateAndStorePayments(updatedPayments);
+        setPayments(payments.filter(p => p.id !== paymentId));
     };
 
     if (!user || !['admin', 'employee'].includes(user.role)) {
@@ -125,5 +104,3 @@ export default function ValidatePaymentsPage() {
         </div>
     );
 }
-
-    

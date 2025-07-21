@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -29,25 +30,11 @@ const users = {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    // Check if user is logged in from a previous session
-    try {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-      }
-    } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
-      localStorage.removeItem('user');
-    } finally {
-        setLoading(false);
-    }
-  }, []);
-
   const login = async (email: string, password: string, username?: string): Promise<void> => {
+    setLoading(true);
     return new Promise((resolve, reject) => {
         setTimeout(() => {
             // Admin and Employee login
@@ -60,7 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     role: predefinedUser.role,
                 };
                 setUser(userData);
-                localStorage.setItem('user', JSON.stringify(userData));
+                setLoading(false);
                 resolve();
                 return;
             }
@@ -74,7 +61,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     role: 'customer'
                 };
                 setUser(newCustomer);
-                localStorage.setItem('user', JSON.stringify(newCustomer));
+                setLoading(false);
                 resolve();
                 return;
             }
@@ -83,6 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // In a real app, you would check the database. Here we simulate that any other login is a customer.
             // For this simulation, we will reject unknown logins.
             if (!predefinedUser) {
+                 setLoading(false);
                  reject(new Error("Credenciales incorrectas. Por favor, inténtalo de nuevo."));
                  return;
             }
@@ -94,7 +82,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('user');
     router.push('/auth');
   };
 

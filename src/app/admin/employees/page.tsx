@@ -47,7 +47,7 @@ export type Employee = {
 export default function ManageEmployeesPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -58,26 +58,6 @@ export default function ManageEmployeesPage() {
     }
   }, [user, router]);
   
-  useEffect(() => {
-    try {
-      const storedEmployees = localStorage.getItem('employees');
-      if (storedEmployees) {
-        setEmployees(JSON.parse(storedEmployees));
-      } else {
-        setEmployees(initialEmployees);
-        localStorage.setItem('employees', JSON.stringify(initialEmployees));
-      }
-    } catch (error) {
-      console.error("Failed to parse employees from localStorage", error);
-      setEmployees(initialEmployees);
-    }
-  }, []);
-
-  const updateAndStoreEmployees = (newEmployees: Employee[]) => {
-    setEmployees(newEmployees);
-    localStorage.setItem('employees', JSON.stringify(newEmployees));
-  }
-
   const form = useForm<z.infer<typeof createEmployeeSchema>>({
     resolver: zodResolver(createEmployeeSchema),
     defaultValues: {
@@ -105,7 +85,7 @@ export default function ManageEmployeesPage() {
         ...values,
     };
 
-    updateAndStoreEmployees([...employees, newEmployee]);
+    setEmployees(prev => [...prev, newEmployee]);
     console.log("Creating new employee:", newEmployee);
     form.reset();
   }
@@ -116,8 +96,7 @@ export default function ManageEmployeesPage() {
   }
 
   const handleUpdateEmployee = (updatedEmployee: Employee) => {
-    const updatedList = employees.map(emp => emp.id === updatedEmployee.id ? updatedEmployee : emp);
-    updateAndStoreEmployees(updatedList);
+    setEmployees(employees.map(emp => emp.id === updatedEmployee.id ? updatedEmployee : emp));
   }
 
   if (user?.role !== 'admin') {
@@ -285,5 +264,3 @@ export default function ManageEmployeesPage() {
     </>
   );
 }
-
-    
