@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { useEvents, Event } from "@/context/EventContext";
 
 const games = [
     { value: "free fire", label: "Free Fire" },
@@ -60,13 +61,11 @@ const createEventSchema = z.object({
 }, { message: "Debes seleccionar un modo de juego.", path: ["gameMode"] });
 
 
-type Event = z.infer<typeof createEventSchema> & { id: string, published: boolean };
-
 export default function CreateEventPage() {
   const { user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const [events, setEvents] = useState<Event[]>([]);
+  const { events, addEvent, toggleEventStatus } = useEvents();
 
   useEffect(() => {
     if (!user || !['admin', 'employee'].includes(user.role)) {
@@ -89,18 +88,14 @@ export default function CreateEventPage() {
   const watchPrizeType = form.watch("prizeType");
 
   function onSubmit(values: z.infer<typeof createEventSchema>) {
-    const newEvent: Event = {
-      ...values,
-      id: String(Date.now()),
-      published: false,
-    };
-    setEvents(prev => [newEvent, ...prev]);
+    addEvent(values);
     toast({
       title: "¡Evento Creado!",
       description: `El evento "${values.name}" ha sido creado exitosamente.`,
     });
     form.reset({
       name: "",
+      type: undefined,
       game: undefined,
       prizeType: "money",
       prizeMoney: 0,
@@ -114,11 +109,7 @@ export default function CreateEventPage() {
   }
 
   const togglePublishStatus = (eventId: string) => {
-    setEvents(prev =>
-      prev.map(event =>
-        event.id === eventId ? { ...event, published: !event.published } : event
-      )
-    );
+    toggleEventStatus(eventId);
   };
 
   if (!user || !['admin', 'employee'].includes(user.role)) {
@@ -399,4 +390,3 @@ export default function CreateEventPage() {
     </div>
   );
 }
-
