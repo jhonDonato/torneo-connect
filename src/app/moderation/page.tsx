@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState, useFormStatus } from "react-dom";
 import { checkMessageModeration, ModerationState } from "./actions";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ThumbsUp, ThumbsDown, ShieldCheck, Loader2 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useActionState as useFormStateReact } from "react";
+
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -22,7 +23,7 @@ function SubmitButton() {
 
 export default function ModerationPage() {
   const initialState: ModerationState = {};
-  const [state, dispatch] = useFormState(checkMessageModeration, initialState);
+  const [state, dispatch] = useFormStateReact(checkMessageModeration, initialState);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
