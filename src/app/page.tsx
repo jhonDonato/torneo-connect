@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -12,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { useEvents } from "@/context/EventContext";
 import { Event } from "@/context/EventContext";
+import { cn } from "@/lib/utils";
 
 const games = [
     { id: 'g1', name: 'Todos', img: 'gaming montage' },
@@ -30,6 +32,8 @@ export default function Home() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedGame, setSelectedGame] = useState("Todos");
   const { user } = useAuth();
   const { events } = useEvents();
 
@@ -41,8 +45,14 @@ export default function Home() {
       setIsAuthDialogOpen(true);
     }
   };
-
-  const publishedEvents = events.filter(event => event.published);
+  
+  const filteredEvents = events
+    .filter(event => event.published)
+    .filter(event => {
+      const gameMatch = selectedGame === 'Todos' || event.game.toLowerCase() === selectedGame.toLowerCase();
+      const searchMatch = event.name.toLowerCase().includes(searchQuery.toLowerCase());
+      return gameMatch && searchMatch;
+    });
 
   const getPrizeString = (event: Event) => {
     if (event.prizeType === 'money') {
@@ -67,7 +77,12 @@ export default function Home() {
         <div className="max-w-md mx-auto">
             <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input placeholder="Buscar torneos o sorteos..." className="pl-10" />
+                <Input 
+                    placeholder="Buscar torneos o sorteos..." 
+                    className="pl-10" 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
             </div>
         </div>
       </div>
@@ -76,7 +91,15 @@ export default function Home() {
         <h2 className="text-2xl font-headline font-bold mb-6 text-center">Explora por Juego</h2>
         <div className="flex flex-wrap justify-center gap-4">
             {games.map(game => (
-                <Button key={game.id} variant="outline" className="flex flex-col h-28 w-28 p-4">
+                <Button 
+                    key={game.id} 
+                    variant={selectedGame === game.name ? "default" : "outline"} 
+                    className={cn(
+                        "flex flex-col h-28 w-28 p-4 transition-all duration-200",
+                         selectedGame === game.name ? "ring-2 ring-primary" : ""
+                    )}
+                    onClick={() => setSelectedGame(game.name)}
+                >
                      <Image src={`https://placehold.co/48x48.png`} alt={game.name} data-ai-hint={game.img} width={48} height={48} className="mb-2 rounded-md" />
                      <span className="text-sm font-semibold">{game.name}</span>
                 </Button>
@@ -85,7 +108,7 @@ export default function Home() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {publishedEvents.map((item) => {
+        {filteredEvents.map((item) => {
           const Icon = getIcon(item.type);
           return (
             <Card key={item.id} className="flex flex-col overflow-hidden shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
