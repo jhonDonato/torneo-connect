@@ -5,8 +5,18 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Ticket, Swords } from "lucide-react";
+import { Ticket, Swords, Search } from "lucide-react";
 import { PaymentDialog } from "@/components/PaymentDialog";
+import { AuthDialog } from "@/components/AuthDialog";
+import { Input } from "@/components/ui/input";
+
+const games = [
+    { id: 'g1', name: 'Todos', img: 'gaming montage' },
+    { id: 'g2', name: 'Free Fire', img: 'battle royale' },
+    { id: 'g3', name: 'Dota 2', img: 'moba game' },
+    { id: 'g4', name: 'Valorant', img: 'tactical shooter' },
+    { id: 'g5', name: 'GTA V', img: 'open world' }
+];
 
 const tournaments = [
   { id: 't1', type: 'tournament', name: 'Torneo de Verano - Valorant', prize: 'S/ 500', fee: 'S/ 25', slots: '16/32', img: 'gaming competition', icon: Swords },
@@ -24,20 +34,48 @@ type Tournament = {
 
 export default function Home() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
+  
+  // Simularemos el estado de autenticación. En un futuro, esto vendrá de un proveedor de contexto o hook.
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const handleJoinClick = (tournament: Tournament) => {
     setSelectedTournament(tournament);
-    setIsPaymentDialogOpen(true);
+    if (isAuthenticated) {
+      setIsPaymentDialogOpen(true);
+    } else {
+      setIsAuthDialogOpen(true);
+    }
   };
 
   return (
     <>
-      <div className="text-center mb-12">
-        <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Sorteos y Torneos Abiertos</h1>
-        <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-          Participa en nuestros eventos exclusivos y demuestra tu habilidad. ¡Grandes premios te esperan!
-        </p>
+      <div className="text-center mb-12 space-y-8">
+        <div>
+          <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Sorteos y Torneos Abiertos</h1>
+          <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+            Participa en nuestros eventos exclusivos y demuestra tu habilidad. ¡Grandes premios te esperan!
+          </p>
+        </div>
+        <div className="max-w-md mx-auto">
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input placeholder="Buscar torneos o sorteos..." className="pl-10" />
+            </div>
+        </div>
+      </div>
+      
+      <div className="mb-12">
+        <h2 className="text-2xl font-headline font-bold mb-6 text-center">Explora por Juego</h2>
+        <div className="flex flex-wrap justify-center gap-4">
+            {games.map(game => (
+                <Button key={game.id} variant="outline" className="flex flex-col h-28 w-28 p-4">
+                     <Image src={`https://placehold.co/48x48.png`} alt={game.name} data-ai-hint={game.img} width={48} height={48} className="mb-2 rounded-md" />
+                     <span className="text-sm font-semibold">{game.name}</span>
+                </Button>
+            ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -76,6 +114,11 @@ export default function Home() {
         ))}
       </div>
       
+      <AuthDialog 
+        isOpen={isAuthDialogOpen}
+        onOpenChange={setIsAuthDialogOpen}
+      />
+
       <PaymentDialog 
         isOpen={isPaymentDialogOpen}
         onOpenChange={setIsPaymentDialogOpen}

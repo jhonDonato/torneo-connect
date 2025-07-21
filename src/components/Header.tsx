@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Gamepad2, Swords, Trophy, History, ShieldCheck, Menu, X } from "lucide-react";
+import { Gamepad2, Swords, Trophy, History, ShieldCheck, Menu, X, LogIn, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { useState } from "react";
@@ -9,30 +9,40 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/", label: "Sorteos y Torneos", icon: Swords },
-  { href: "/rankings", label: "Ranking", icon: Trophy },
-  { href: "/history", label: "Historial", icon: History },
-  { href: "/moderation", label: "Moderación", icon: ShieldCheck },
+  { href: "/", label: "Sorteos y Torneos", icon: Swords, locked: false },
+  { href: "/rankings", label: "Ranking", icon: Trophy, locked: false },
+  { href: "/history", label: "Historial", icon: History, locked: false },
+  { href: "/moderation", label: "Moderación", icon: ShieldCheck, locked: true }, // Ejemplo de item bloqueado
 ];
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  const NavLink = ({ href, label, icon: Icon, isMobile = false }: { href: string; label: string; icon: React.ElementType; isMobile?: boolean }) => {
+  // Simulando estado de autenticación
+  const isAuthenticated = false; 
+
+  const NavLink = ({ href, label, icon: Icon, isMobile = false, locked = false }: { href: string; label: string; icon: React.ElementType; isMobile?: boolean, locked?: boolean }) => {
     const linkContent = (
       <Button
         variant="ghost"
         className={cn(
           "justify-start gap-2",
           pathname === href ? "bg-accent text-accent-foreground" : "",
-          isMobile ? "w-full text-lg" : ""
+          isMobile ? "w-full text-lg" : "",
+          locked && !isAuthenticated ? "text-muted-foreground cursor-not-allowed" : ""
         )}
+        disabled={locked && !isAuthenticated}
       >
         <Icon className="h-5 w-5" />
-        {label}
+        <span>{label}</span>
+        {locked && !isAuthenticated && <Lock className="h-4 w-4 text-muted-foreground" />}
       </Button>
     );
+
+    if (locked && !isAuthenticated) {
+        return <div className="relative" title="Inicia sesión para acceder">{linkContent}</div>
+    }
 
     if (isMobile) {
       return (
@@ -64,6 +74,11 @@ export function Header() {
           {navItems.map((item) => (
             <NavLink key={item.href} {...item} />
           ))}
+           <Link href="/auth" passHref>
+              <Button>
+                <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión
+              </Button>
+            </Link>
         </div>
 
         {/* Mobile Navigation */}
@@ -84,7 +99,7 @@ export function Header() {
                       <span>TorneoConnect</span>
                     </Link>
                    </SheetClose>
-                  <SheetClose asChild>
+                   <SheetClose asChild>
                      <Button variant="ghost" size="icon">
                        <X className="h-6 w-6" />
                        <span className="sr-only">Cerrar menú</span>
@@ -96,6 +111,15 @@ export function Header() {
                     <NavLink key={item.href} {...item} isMobile />
                   ))}
                 </div>
+                 <div className="mt-auto">
+                    <SheetClose asChild>
+                        <Link href="/auth" passHref className="w-full">
+                             <Button className="w-full">
+                                <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión
+                             </Button>
+                        </Link>
+                    </SheetClose>
+                 </div>
               </div>
             </SheetContent>
           </Sheet>
