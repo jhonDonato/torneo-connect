@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -12,6 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Gamepad2, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Por favor, introduce un email válido." }),
@@ -32,6 +34,14 @@ type AuthState = {
 export default function AuthPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [authState, setAuthState] = useState<AuthState>(null);
+    const { login, user } = useAuth();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (user) {
+            router.push('/');
+        }
+    }, [user, router]);
 
     const loginForm = useForm<z.infer<typeof loginSchema>>({
         resolver: zodResolver(loginSchema),
@@ -43,34 +53,36 @@ export default function AuthPage() {
         defaultValues: { username: "", email: "", password: "" },
     });
 
-    const onLoginSubmit = (values: z.infer<typeof loginSchema>) => {
+    const onLoginSubmit = async (values: z.infer<typeof loginSchema>) => {
         setIsLoading(true);
         setAuthState(null);
-        console.log("Login data:", values);
-        // Simulación de llamada a API
-        setTimeout(() => {
-            if (values.email === "error@test.com") {
-                setAuthState({ type: "error", message: "Credenciales incorrectas. Por favor, inténtalo de nuevo." });
-            } else {
-                setAuthState({ type: "success", message: "¡Has iniciado sesión correctamente!" });
-            }
+        
+        try {
+            await login(values.email, values.password);
+            setAuthState({ type: "success", message: "¡Has iniciado sesión correctamente! Redirigiendo..." });
+            // The useEffect will handle the redirection
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Ocurrió un error inesperado.";
+            setAuthState({ type: "error", message: errorMessage });
             setIsLoading(false);
-        }, 1500);
+        }
     };
 
     const onRegisterSubmit = (values: z.infer<typeof registerSchema>) => {
         setIsLoading(true);
         setAuthState(null);
         console.log("Register data:", values);
-        // Simulación de llamada a API
+        // Simulación de llamada a API de registro
         setTimeout(() => {
             if (values.email === "taken@test.com") {
                 setAuthState({ type: "error", message: "Este correo electrónico ya está en uso." });
+                setIsLoading(false);
             } else {
-                 setAuthState({ type: "success", message: "¡Cuenta creada exitosamente! Ya puedes iniciar sesión." });
+                 setAuthState({ type: "success", message: "¡Cuenta creada exitosamente! Serás redirigido al inicio." });
+                 // Simular login después de registro
+                 login(values.email, values.password, values.username);
             }
-            setIsLoading(false);
-        }, 1500);
+        }, 500); // Reduced delay for better UX
     };
 
     return (

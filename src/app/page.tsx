@@ -9,6 +9,7 @@ import { Ticket, Swords, Search } from "lucide-react";
 import { PaymentDialog } from "@/components/PaymentDialog";
 import { AuthDialog } from "@/components/AuthDialog";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/context/AuthContext";
 
 const games = [
     { id: 'g1', name: 'Todos', img: 'gaming montage' },
@@ -36,13 +37,11 @@ export default function Home() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
-  
-  // Simularemos el estado de autenticación. En un futuro, esto vendrá de un proveedor de contexto o hook.
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { user } = useAuth();
 
   const handleJoinClick = (tournament: Tournament) => {
     setSelectedTournament(tournament);
-    if (isAuthenticated) {
+    if (user) {
       setIsPaymentDialogOpen(true);
     } else {
       setIsAuthDialogOpen(true);
