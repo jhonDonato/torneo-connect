@@ -1,7 +1,8 @@
+
 "use client";
 
 import Link from "next/link";
-import { Gamepad2, Swords, Trophy, History, ShieldCheck, Menu, X, LogIn, Lock, LogOut, User, Users, CalendarPlus } from "lucide-react";
+import { Gamepad2, Swords, Trophy, History, ShieldCheck, Menu, X, LogIn, Lock, LogOut, User, Users, CalendarPlus, LayoutDashboard, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { useState } from "react";
@@ -24,8 +25,10 @@ const navItems = [
   { href: "/rankings", label: "Ranking", icon: Trophy, requiredRoles: [] },
   { href: "/history", label: "Historial", icon: History, requiredRoles: [] },
   { href: "/moderation", label: "Moderación", icon: ShieldCheck, requiredRoles: [] },
+  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, requiredRoles: ['admin'] },
   { href: "/admin/employees", label: "Gestionar Empleados", icon: Users, requiredRoles: ['admin'] },
   { href: "/events/create", label: "Crear Evento", icon: CalendarPlus, requiredRoles: ['admin', 'employee'] },
+  { href: "/payments/validate", label: "Validar Pagos", icon: CheckCircle, requiredRoles: ['admin', 'employee'] },
 ];
 
 export function Header() {
