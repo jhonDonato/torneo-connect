@@ -49,16 +49,16 @@ export function Header() {
       <Button
         variant="ghost"
         className={cn(
-          "justify-start gap-2",
+          "justify-start",
           pathname === href ? "bg-accent text-accent-foreground" : "",
           isMobile ? "w-full text-lg" : ""
         )}
         asChild
       >
-        <>
+        <div className="flex items-center gap-2">
             <Icon className="h-5 w-5" />
             <span>{label}</span>
-        </>
+        </div>
       </Button>
     );
 
