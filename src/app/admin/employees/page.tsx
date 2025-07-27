@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -11,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Lock, Unlock, AlertCircle } from "lucide-react";
+import { Users, Lock, Unlock, AlertCircle, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { EditEmployeeDialog } from "@/components/EditEmployeeDialog";
@@ -28,11 +27,6 @@ const createEmployeeSchema = z.object({
   }),
 });
 
-const initialEmployees = [
-  { id: "2", username: "EmpleadoUno", email: "empleado@test.com", permissions: { manageEvents: true, validatePayments: false, moderateMessages: true } },
-  { id: "3", username: "EmpleadoDos", email: "empleado2@test.com", permissions: { manageEvents: false, validatePayments: true, moderateMessages: false } },
-];
-
 export type Employee = {
     id: string;
     username: string;
@@ -47,16 +41,34 @@ export type Employee = {
 export default function ManageEmployeesPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (user?.role !== 'admin') {
       router.push('/');
+    } else {
+        fetchEmployees();
     }
   }, [user, router]);
+
+  const fetchEmployees = async () => {
+    setIsLoading(true);
+    try {
+        const response = await fetch('/api/employees');
+        if (!response.ok) throw new Error('Failed to fetch employees');
+        const data = await response.json();
+        setEmployees(data);
+    } catch (error) {
+        console.error(error);
+        // Handle error display to user
+    } finally {
+        setIsLoading(false);
+    }
+  }
   
   const form = useForm<z.infer<typeof createEmployeeSchema>>({
     resolver: zodResolver(createEmployeeSchema),
@@ -72,22 +84,28 @@ export default function ManageEmployeesPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof createEmployeeSchema>) {
+  async function onSubmit(values: z.infer<typeof createEmployeeSchema>) {
     setFormError(null);
-    const emailExists = employees.some(emp => emp.email === values.email);
-    if (emailExists) {
-        setFormError("Ya existe un empleado con este correo electrónico.");
-        return;
+    form.clearErrors();
+
+    try {
+        const response = await fetch('/api/employees', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(values),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Error al crear el empleado.');
+        }
+
+        const newEmployee = await response.json();
+        setEmployees(prev => [...prev, newEmployee]);
+        form.reset();
+    } catch (error) {
+        setFormError(error instanceof Error ? error.message : "Un error inesperado ocurrió.");
     }
-
-    const newEmployee: Employee = {
-        id: String(Date.now()),
-        ...values,
-    };
-
-    setEmployees(prev => [...prev, newEmployee]);
-    console.log("Creating new employee:", newEmployee);
-    form.reset();
   }
 
   const handleEditClick = (employee: Employee) => {
@@ -95,8 +113,23 @@ export default function ManageEmployeesPage() {
     setIsEditDialogOpen(true);
   }
 
-  const handleUpdateEmployee = (updatedEmployee: Employee) => {
-    setEmployees(employees.map(emp => emp.id === updatedEmployee.id ? updatedEmployee : emp));
+  const handleUpdateEmployee = async (updatedEmployee: Employee) => {
+    try {
+        const response = await fetch(`/api/employees/${updatedEmployee.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ permissions: updatedEmployee.permissions }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update employee');
+        }
+
+        setEmployees(employees.map(emp => emp.id === updatedEmployee.id ? updatedEmployee : emp));
+        setIsEditDialogOpen(false);
+    } catch (error) {
+        console.error("Update error:", error);
+    }
   }
 
   if (user?.role !== 'admin') {
@@ -202,7 +235,10 @@ export default function ManageEmployeesPage() {
                         />
                     </div>
                   </div>
-                  <Button type="submit" className="w-full">Crear Empleado</Button>
+                  <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                    {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Crear Empleado
+                  </Button>
                 </form>
               </Form>
             </CardContent>
@@ -214,41 +250,43 @@ export default function ManageEmployeesPage() {
               <CardTitle className="font-headline flex items-center gap-2"><Users /> Lista de Empleados</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Usuario</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Permisos</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {employees.map((employee) => (
-                    <TableRow key={employee.id}>
-                      <TableCell className="font-medium">{employee.username}</TableCell>
-                      <TableCell>{employee.email}</TableCell>
-                      <TableCell className="flex flex-wrap gap-2">
-                        <Button size="sm" variant={employee.permissions.manageEvents ? "secondary" : "outline"} className="cursor-default">
-                            {employee.permissions.manageEvents ? <Unlock className="mr-2 h-3 w-3" /> : <Lock className="mr-2 h-3 w-3" />}
-                            Eventos
-                        </Button>
-                         <Button size="sm" variant={employee.permissions.validatePayments ? "secondary" : "outline"} className="cursor-default">
-                            {employee.permissions.validatePayments ? <Unlock className="mr-2 h-3 w-3" /> : <Lock className="mr-2 h-3 w-3" />}
-                            Pagos
-                        </Button>
-                         <Button size="sm" variant={employee.permissions.moderateMessages ? "secondary" : "outline"} className="cursor-default">
-                            {employee.permissions.moderateMessages ? <Unlock className="mr-2 h-3 w-3" /> : <Lock className="mr-2 h-3 w-3" />}
-                            Moderación
-                        </Button>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => handleEditClick(employee)}>Editar</Button>
-                      </TableCell>
+              {isLoading ? (<div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>) : (
+                <Table>
+                    <TableHeader>
+                    <TableRow>
+                        <TableHead>Usuario</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Permisos</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                    </TableHeader>
+                    <TableBody>
+                    {employees.map((employee) => (
+                        <TableRow key={employee.id}>
+                        <TableCell className="font-medium">{employee.username}</TableCell>
+                        <TableCell>{employee.email}</TableCell>
+                        <TableCell className="flex flex-wrap gap-2">
+                            <Button size="sm" variant={employee.permissions.manageEvents ? "secondary" : "outline"} className="cursor-default">
+                                {employee.permissions.manageEvents ? <Unlock className="mr-2 h-3 w-3" /> : <Lock className="mr-2 h-3 w-3" />}
+                                Eventos
+                            </Button>
+                            <Button size="sm" variant={employee.permissions.validatePayments ? "secondary" : "outline"} className="cursor-default">
+                                {employee.permissions.validatePayments ? <Unlock className="mr-2 h-3 w-3" /> : <Lock className="mr-2 h-3 w-3" />}
+                                Pagos
+                            </Button>
+                            <Button size="sm" variant={employee.permissions.moderateMessages ? "secondary" : "outline"} className="cursor-default">
+                                {employee.permissions.moderateMessages ? <Unlock className="mr-2 h-3 w-3" /> : <Lock className="mr-2 h-3 w-3" />}
+                                Moderación
+                            </Button>
+                        </TableCell>
+                        <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" onClick={() => handleEditClick(employee)}>Editar</Button>
+                        </TableCell>
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </div>

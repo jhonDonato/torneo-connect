@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -15,81 +14,89 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string, username?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Hardcoded users for simulation
-const users = {
-    "donato@gmail.com": { id: "1", username: "Donato", password: "Donay20", role: "admin" as Role },
-    "empleado@test.com": { id: "2", username: "EmpleadoUno", password: "password123", role: "employee" as Role },
-};
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start with loading true
   const router = useRouter();
 
-  const login = async (email: string, password: string, username?: string): Promise<void> => {
-    setLoading(true);
-    return new Promise((resolve, reject) => {
-        setTimeout(() => {
-            // Admin and Employee login
-            const predefinedUser = (users as any)[email];
-            if (predefinedUser && predefinedUser.password === password) {
-                const userData = {
-                    id: predefinedUser.id,
-                    username: predefinedUser.username,
-                    email,
-                    role: predefinedUser.role,
-                };
-                setUser(userData);
-                setLoading(false);
-                resolve();
-                return;
-            }
+  useEffect(() => {
+    // Check for session on initial load
+    const checkSession = async () => {
+      try {
+        const response = await fetch('/api/auth/session');
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error("Session check failed", error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkSession();
+  }, []);
 
-            // Customer registration/login simulation
-            if (username) { // Registration
-                const newCustomer: User = {
-                    id: String(Date.now()),
-                    username,
-                    email,
-                    role: 'customer'
-                };
-                setUser(newCustomer);
-                setLoading(false);
-                resolve();
-                return;
-            }
-
-            // Customer login (if they are not predefined)
-            // In a real app, you would check the database. Here we simulate that any other login is a customer.
-            // For this simulation, we will reject unknown logins.
-            if (!predefinedUser) {
-                 setLoading(false);
-                 reject(new Error("Credenciales incorrectas. Por favor, inténtalo de nuevo."));
-                 return;
-            }
-
-
-        }, 500);
+  const login = async (email: string, password: string): Promise<void> => {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
     });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Login failed');
+    }
+
+    const userData = await response.json();
+    setUser(userData);
+    router.push('/');
   };
 
-  const logout = () => {
+  const register = async (username: string, email: string, password: string): Promise<void> => {
+    const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Registration failed');
+    }
+
+    const userData = await response.json();
+    setUser(userData);
+    router.push('/');
+  }
+
+  const logout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
     setUser(null);
     router.push('/auth');
   };
 
-  const value = { user, login, logout, loading };
+  const value = { user, login, register, logout, loading };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {loading ? (
+        <div className="flex items-center justify-center h-screen">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      ) : children}
     </AuthContext.Provider>
   );
 };
@@ -101,3 +108,6 @@ export const useAuth = () => {
   }
   return context;
 };
+
+// Add Loader2 to the list of imports in AuthContext
+import { Loader2 } from 'lucide-react';

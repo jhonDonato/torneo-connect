@@ -12,58 +12,79 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Banknote, Upload, Smartphone } from "lucide-react";
+import { Banknote, Upload, Smartphone, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-type Tournament = {
-  id: string;
-  name: string;
-};
+import { Event } from "@/context/EventContext";
 
 interface PaymentDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  tournament: Tournament | null;
+  event: Event | null;
 }
 
-export function PaymentDialog({ isOpen, onOpenChange, tournament }: PaymentDialogProps) {
+export function PaymentDialog({ isOpen, onOpenChange, event }: PaymentDialogProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!file) {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!file || !event) {
       toast({
         title: "Error",
-        description: "Por favor, sube una evidencia de pago.",
+        description: "Por favor, selecciona un archivo de evidencia.",
         variant: "destructive",
       });
       return;
     }
     setIsLoading(true);
 
-    // Simulate upload and validation
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('eventId', event.id);
+    formData.append('amount', String(event.fee));
 
-    console.log("Uploading file for tournament:", tournament?.name, file.name);
+    try {
+        const response = await fetch('/api/payments/submit', {
+            method: 'POST',
+            body: formData,
+        });
 
-    setIsLoading(false);
-    onOpenChange(false);
-    setFile(null);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Error al subir la evidencia.');
+        }
 
-    toast({
-      title: "¡Éxito!",
-      description: `Tu evidencia de pago para "${tournament?.name}" ha sido enviada para validación.`,
-    });
+        toast({
+            title: "¡Éxito!",
+            description: `Tu evidencia de pago para "${event.name}" ha sido enviada para validación.`,
+        });
+        onOpenChange(false);
+        setFile(null);
+    } catch (error) {
+        toast({
+            title: "Error de Envío",
+            description: error instanceof Error ? error.message : "Un error inesperado ocurrió.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsLoading(false);
+    }
   };
+  
+  const handleClose = () => {
+    if (!isLoading) {
+        onOpenChange(false);
+        setFile(null);
+    }
+  }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[480px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="font-headline text-2xl text-primary">Unirse a: {tournament?.name}</DialogTitle>
+            <DialogTitle className="font-headline text-2xl text-primary">Unirse a: {event?.name}</DialogTitle>
             <DialogDescription>
               Realiza el pago y sube la evidencia para completar tu inscripción.
             </DialogDescription>
@@ -87,12 +108,15 @@ export function PaymentDialog({ isOpen, onOpenChange, tournament }: PaymentDialo
                 accept="image/png, image/jpeg, image/webp"
                 onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
                 className="file:text-primary"
+                required
               />
               <p className="text-xs text-muted-foreground mt-1">Sube la captura de tu pago (JPG, PNG, WEBP).</p>
             </div>
           </div>
           <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isLoading}>Cancelar</Button>
             <Button type="submit" disabled={isLoading || !file}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isLoading ? "Enviando..." : "Enviar Evidencia"}
             </Button>
           </DialogFooter>

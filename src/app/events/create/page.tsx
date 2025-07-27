@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -11,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar as CalendarIcon, CalendarPlus, Eye, EyeOff } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarPlus, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
@@ -24,7 +23,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { useEvents, Event } from "@/context/EventContext";
+import { useEvents } from "@/context/EventContext";
 
 const games = [
     { value: "free fire", label: "Free Fire" },
@@ -65,7 +64,7 @@ export default function CreateEventPage() {
   const { user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const { events, addEvent, toggleEventStatus } = useEvents();
+  const { events, addEvent, toggleEventStatus, loading } = useEvents();
 
   useEffect(() => {
     if (!user || !['admin', 'employee'].includes(user.role)) {
@@ -87,30 +86,34 @@ export default function CreateEventPage() {
   const watchGame = form.watch("game");
   const watchPrizeType = form.watch("prizeType");
 
-  function onSubmit(values: z.infer<typeof createEventSchema>) {
-    addEvent(values);
-    toast({
-      title: "¡Evento Creado!",
-      description: `El evento "${values.name}" ha sido creado exitosamente.`,
-    });
-    form.reset({
-      name: "",
-      type: undefined,
-      game: undefined,
-      prizeType: "money",
-      prizeMoney: 0,
-      prizeObject: "",
-      gameMode: undefined,
-      fee: 0,
-      slots: 16,
-      eventDate: undefined,
-      description: "",
-    });
+  async function onSubmit(values: z.infer<typeof createEventSchema>) {
+    try {
+        await addEvent(values);
+        toast({
+        title: "¡Evento Creado!",
+        description: `El evento "${values.name}" ha sido creado exitosamente.`,
+        });
+        form.reset({
+        name: "",
+        type: undefined,
+        game: undefined,
+        prizeType: "money",
+        prizeMoney: 0,
+        prizeObject: "",
+        gameMode: undefined,
+        fee: 0,
+        slots: 16,
+        eventDate: undefined,
+        description: "",
+        });
+    } catch (error) {
+        toast({
+            title: "Error al crear evento",
+            description: error instanceof Error ? error.message : "Ocurrió un error inesperado.",
+            variant: "destructive"
+        })
+    }
   }
-
-  const togglePublishStatus = (eventId: string) => {
-    toggleEventStatus(eventId);
-  };
 
   if (!user || !['admin', 'employee'].includes(user.role)) {
     return null; // or a loading/unauthorized component
@@ -303,7 +306,7 @@ export default function CreateEventPage() {
                                 variant={"outline"}
                                 className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
                                 >
-                                {field.value ? (format(field.value, "PPP")) : (<span>Elige una fecha</span>)}
+                                {field.value ? (format(field.value, "PPP", { timeZone: 'UTC' })) : (<span>Elige una fecha</span>)}
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                 </Button>
                             </FormControl>
@@ -339,6 +342,7 @@ export default function CreateEventPage() {
               />
               
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {form.formState.isSubmitting ? "Creando..." : "Crear Evento"}
               </Button>
             </form>
@@ -352,39 +356,41 @@ export default function CreateEventPage() {
           <CardDescription>Gestiona la visibilidad de tus eventos.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Evento</TableHead>
-                <TableHead>Juego</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead className="text-center">Estado</TableHead>
-                <TableHead className="text-right">Publicar</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {events.map((event) => (
-                <TableRow key={event.id}>
-                  <TableCell className="font-medium">{event.name}</TableCell>
-                  <TableCell className="capitalize">{event.game}</TableCell>
-                  <TableCell>{format(event.eventDate, "dd/MM/yyyy")}</TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant={event.published ? "secondary" : "outline"}>
-                      {event.published ? <Eye className="mr-2 h-3 w-3" /> : <EyeOff className="mr-2 h-3 w-3" />}
-                      {event.published ? "Público" : "Oculto"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Switch
-                      checked={event.published}
-                      onCheckedChange={() => togglePublishStatus(event.id)}
-                      aria-label="Publicar evento"
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+            {loading ? (<div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>) : (
+                <Table>
+                    <TableHeader>
+                    <TableRow>
+                        <TableHead>Evento</TableHead>
+                        <TableHead>Juego</TableHead>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead className="text-center">Estado</TableHead>
+                        <TableHead className="text-right">Publicar</TableHead>
+                    </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                    {events.map((event) => (
+                        <TableRow key={event.id}>
+                        <TableCell className="font-medium">{event.name}</TableCell>
+                        <TableCell className="capitalize">{event.game}</TableCell>
+                        <TableCell>{format(new Date(event.eventDate), "dd/MM/yyyy")}</TableCell>
+                        <TableCell className="text-center">
+                            <Badge variant={event.published ? "secondary" : "outline"}>
+                            {event.published ? <Eye className="mr-2 h-3 w-3" /> : <EyeOff className="mr-2 h-3 w-3" />}
+                            {event.published ? "Público" : "Oculto"}
+                            </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                            <Switch
+                            checked={event.published}
+                            onCheckedChange={() => toggleEventStatus(event.id)}
+                            aria-label="Publicar evento"
+                            />
+                        </TableCell>
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+            )}
         </CardContent>
       </Card>
     </div>

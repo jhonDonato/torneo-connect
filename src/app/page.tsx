@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -14,6 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useEvents } from "@/context/EventContext";
 import { Event } from "@/context/EventContext";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 const games = [
     { id: 'g1', name: 'Todos', img: 'gaming montage' },
@@ -23,22 +23,17 @@ const games = [
     { id: 'g5', name: 'GTA V', img: 'open world' }
 ];
 
-type Tournament = {
-  id: string;
-  name: string;
-};
-
 export default function Home() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGame, setSelectedGame] = useState("Todos");
   const { user } = useAuth();
   const { events } = useEvents();
 
-  const handleJoinClick = (tournament: Tournament) => {
-    setSelectedTournament(tournament);
+  const handleJoinClick = (event: Event) => {
+    setSelectedEvent(event);
     if (user) {
       setIsPaymentDialogOpen(true);
     } else {
@@ -130,7 +125,12 @@ export default function Home() {
               </CardHeader>
               <CardContent className="flex-grow p-6">
                 <CardTitle className="font-headline text-xl mb-2">{item.name}</CardTitle>
-                <CardDescription>Premio: <span className="font-semibold text-foreground">{getPrizeString(item)}</span></CardDescription>
+                <CardDescription>
+                  Premio: <span className="font-semibold text-foreground">{getPrizeString(item)}</span>
+                </CardDescription>
+                <CardDescription className="mt-1">
+                  Fecha: <span className="font-semibold text-foreground">{format(new Date(item.eventDate), 'dd/MM/yyyy')}</span>
+                </CardDescription>
                 <div className="flex justify-between items-center mt-4 text-sm">
                   <span className="text-muted-foreground">Costo de entrada: <span className="font-bold text-primary">S/ {item.fee}</span></span>
                   <span className="text-muted-foreground">Cupos: <span className="font-bold text-foreground">{item.slots}</span></span>
@@ -154,7 +154,7 @@ export default function Home() {
       <PaymentDialog 
         isOpen={isPaymentDialogOpen}
         onOpenChange={setIsPaymentDialogOpen}
-        tournament={selectedTournament}
+        event={selectedEvent}
       />
     </>
   );

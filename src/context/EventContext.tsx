@@ -1,8 +1,8 @@
-
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import * as z from 'zod';
+import { useAuth } from './AuthContext';
 
 const createEventSchema = z.object({
   name: z.string(),
@@ -19,44 +19,95 @@ const createEventSchema = z.object({
 });
 
 export type EventPayload = z.infer<typeof createEventSchema>;
-export type Event = EventPayload & { id: string; published: boolean };
+export type Event = Omit<EventPayload, 'eventDate'> & { id: string; published: boolean; eventDate: string };
 
 interface EventContextType {
   events: Event[];
-  addEvent: (eventPayload: EventPayload) => void;
+  addEvent: (eventPayload: EventPayload) => Promise<void>;
   toggleEventStatus: (eventId: string) => void;
+  loading: boolean;
 }
 
 const EventContext = createContext<EventContextType | undefined>(undefined);
 
-const initialEvents: Event[] = [
-    { id: 't1', type: 'tournament', name: 'Torneo de Verano - Valorant', prizeType: 'money', prizeMoney: 500, fee: 25, slots: 32, game: 'valorant', eventDate: new Date(), published: true },
-    { id: 't2', type: 'raffle', name: 'Sorteo Skin Rara', prizeType: 'object', prizeObject: 'Skin "Glitchpop"', fee: 5, slots: 200, game: 'valorant', eventDate: new Date(), published: true },
-    { id: 't3', type: 'tournament', name: 'Campeonato Nacional de Dota 2', prizeType: 'money', prizeMoney: 10000, fee: 100, slots: 16, game: 'dota 2', eventDate: new Date(), published: true },
-    { id: 't4', type: 'raffle', name: 'Sorteo Silla Gamer', prizeType: 'object', prizeObject: 'Silla Ergonómica Pro', fee: 10, slots: 100, game: 'general', eventDate: new Date(), published: true },
-];
-
 export const EventProvider = ({ children }: { children: ReactNode }) => {
-  const [events, setEvents] = useState<Event[]>(initialEvents);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  const addEvent = (eventPayload: EventPayload) => {
-    const newEvent: Event = {
-      ...eventPayload,
-      id: String(Date.now()),
-      published: false,
-    };
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const fetchEvents = async () => {
+    setLoading(true);
+    try {
+        const url = user && ['admin', 'employee'].includes(user.role) 
+            ? '/api/events' 
+            : '/api/events/published';
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error('Failed to fetch events');
+        }
+        const data = await response.json();
+        setEvents(data);
+    } catch (error) {
+        console.error(error);
+        setEvents([]); // Reset on error
+    } finally {
+        setLoading(false);
+    }
+  };
+  
+  // Refetch events if user role changes
+  useEffect(() => {
+    fetchEvents();
+  }, [user]);
+
+  const addEvent = async (eventPayload: EventPayload) => {
+    const response = await fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eventPayload),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create event");
+    }
+
+    const newEvent = await response.json();
     setEvents(prevEvents => [newEvent, ...prevEvents]);
   };
 
-  const toggleEventStatus = (eventId: string) => {
-    setEvents(prevEvents =>
-      prevEvents.map(event =>
-        event.id === eventId ? { ...event, published: !event.published } : event
-      )
-    );
+  const toggleEventStatus = async (eventId: string) => {
+    const event = events.find(e => e.id === eventId);
+    if (!event) return;
+
+    try {
+        const response = await fetch(`/api/events/${eventId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ published: !event.published }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update event status');
+        }
+        
+        // Update local state
+        setEvents(prevEvents =>
+          prevEvents.map(e =>
+            e.id === eventId ? { ...e, published: !e.published } : e
+          )
+        );
+    } catch (error) {
+        console.error(error);
+    }
   };
 
-  const value = { events, addEvent, toggleEventStatus };
+  const value = { events, addEvent, toggleEventStatus, loading };
 
   return (
     <EventContext.Provider value={value}>

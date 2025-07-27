@@ -34,7 +34,7 @@ type AuthState = {
 export default function AuthPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [authState, setAuthState] = useState<AuthState>(null);
-    const { login, user } = useAuth();
+    const { login, register, user } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
@@ -56,34 +56,34 @@ export default function AuthPage() {
     const onLoginSubmit = async (values: z.infer<typeof loginSchema>) => {
         setIsLoading(true);
         setAuthState(null);
-        
         try {
             await login(values.email, values.password);
-            setAuthState({ type: "success", message: "¡Has iniciado sesión correctamente! Redirigiendo..." });
-            // The useEffect will handle the redirection
+            // The useEffect will handle redirection
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "Ocurrió un error inesperado.";
             setAuthState({ type: "error", message: errorMessage });
+        } finally {
             setIsLoading(false);
         }
     };
 
-    const onRegisterSubmit = (values: z.infer<typeof registerSchema>) => {
+    const onRegisterSubmit = async (values: z.infer<typeof registerSchema>) => {
         setIsLoading(true);
         setAuthState(null);
-        console.log("Register data:", values);
-        // Simulación de llamada a API de registro
-        setTimeout(() => {
-            if (values.email === "taken@test.com") {
-                setAuthState({ type: "error", message: "Este correo electrónico ya está en uso." });
-                setIsLoading(false);
-            } else {
-                 setAuthState({ type: "success", message: "¡Cuenta creada exitosamente! Serás redirigido al inicio." });
-                 // Simular login después de registro
-                 login(values.email, values.password, values.username);
-            }
-        }, 500); // Reduced delay for better UX
+        try {
+            await register(values.username, values.email, values.password);
+            // The useEffect will handle redirection
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Ocurrió un error inesperado.";
+            setAuthState({ type: "error", message: errorMessage });
+        } finally {
+            setIsLoading(false);
+        }
     };
+
+    if (user) {
+        return null; // Don't render anything if user is logged in, useEffect will redirect
+    }
 
     return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
